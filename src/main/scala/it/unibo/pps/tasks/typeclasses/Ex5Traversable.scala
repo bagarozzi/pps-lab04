@@ -1,6 +1,8 @@
 package it.unibo.pps.tasks.typeclasses
 
-import it.unibo.pps.u03.Sequences.Sequence, Sequence.*
+import it.unibo.pps.u03.Sequences.Sequence
+import Sequence.*
+import it.unibo.pps.u03.Optionals.Optional
 
 /*  Exercise 5: 
  *  - Generalise by ad-hoc polymorphism logAll, such that:
@@ -17,10 +19,27 @@ import it.unibo.pps.u03.Sequences.Sequence, Sequence.*
 
 object Ex5Traversable:
 
-  def log[A](a: A): Unit = println("The next element is: "+a)
+  trait Traversable[T[_]]:
+      def consume[A](ta: T[A])(cons: A => Unit): Unit
 
-  def logAll[A](seq: Sequence[A]): Unit = seq match
-    case Cons(h, t) => log(h); logAll(t)
-    case _ => ()
+  given Traversable[Sequence] with
+    def consume[A](seq: Sequence[A])(cons: A => Unit): Unit = seq match
+      case Cons(h, t) => cons(h) ; consume(t)(cons)
+      case _ => ()
 
-  
+  given Traversable[Optional] with
+    def consume[A](opt: Optional[A])(cons: A => Unit): Unit = opt match
+      case Optional.Just(a) => cons(a)
+      case Optional.Empty() => ()
+
+  private def log[A](a: A): Unit = println("The next element is: "+a)
+
+  private def logAll[F[_]: Traversable, A](data: F[A]): Unit = summon[Traversable[F]].consume(data)(log)
+
+  @main def TestTraversable(): Unit =
+    val s = Cons("1", Cons("2", Cons("3", Nil())))
+    logAll(s)
+    val o = Optional.Just(4)
+    val emptyO = Optional.Empty()
+    logAll(o)
+    logAll(emptyO)
